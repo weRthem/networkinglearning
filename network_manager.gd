@@ -7,7 +7,9 @@ var enet = ENetMultiplayerPeer.new();
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
-	if Engine.is_embedded_in_editor():
+	var args : PackedStringArray = OS.get_cmdline_args()
+	
+	if args.has("server"):
 		_create_server()
 	else:
 		_connect_client()
