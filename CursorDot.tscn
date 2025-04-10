@@ -1,0 +1,13 @@
+[gd_scene load_steps=3 format=3 uid="uid://cxded1tn5eqcc"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_hr813"]
+transparency = 1
+albedo_color = Color(0, 0, 0.733333, 0.498039)
+
+[sub_resource type="SphereMesh" id="SphereMesh_slvry"]
+material = SubResource("StandardMaterial3D_hr813")
+radius = 0.2
+height = 0.4
+
+[node name="MeshInstance3D" type="MeshInstance3D"]
+mesh = SubResource("SphereMesh_slvry")

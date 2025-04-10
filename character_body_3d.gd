@@ -4,7 +4,10 @@ extends CharacterBody3D
 @onready var navigation_agent: NavigationAgent3D = get_node("NavigationAgent3D")
 @onready var body: Node3D = get_node("Body")
 @onready var body_ap: AnimationPlayer = get_node("Body/AnimationPlayer")
-@export var network_manager: RichTextLabel;
+@export var network_manager: NetworkManager;
+@export var cursor_dot : PackedScene;
+
+var current_cursor_dot : MeshInstance3D = null
 
 func _ready() -> void:
 	navigation_agent.velocity_computed.connect(Callable(_on_velocity_computed))
@@ -21,7 +24,7 @@ func _physics_process(delta):
 	var next_path_position: Vector3 = navigation_agent.get_next_path_position()
 	var new_velocity: Vector3 = global_position.direction_to(next_path_position) * movement_speed
 	
-	next_path_position = next_path_position
+	next_path_position.y = 0
 	body.look_at(next_path_position)
 	body.rotate_y(3.14)
 	
@@ -36,6 +39,8 @@ func _on_velocity_computed(safe_velocity: Vector3):
 
 func _on_arrived_at_target():
 	body_ap.play("idle")
+	if current_cursor_dot != null:
+		current_cursor_dot.queue_free()
 
 func _input(event: InputEvent) -> void:
 	if !network_manager.multiplayer.is_server():
@@ -55,4 +60,11 @@ func _input(event: InputEvent) -> void:
 			
 		if !intersection.is_empty():
 			set_movement_target.rpc(intersection.position)
+			
+			if current_cursor_dot != null:
+				current_cursor_dot.queue_free()
+				
+			current_cursor_dot = cursor_dot.instantiate()
+			get_node("/root").add_child(current_cursor_dot)
+			current_cursor_dot.position = intersection.position
 		
