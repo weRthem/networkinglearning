@@ -1,6 +1,6 @@
 [gd_scene load_steps=37 format=3 uid="uid://jm2di4gti8v0"]
 
-[ext_resource type="Script" uid="uid://bo6sgoc00ixpn" path="res://network_manager.gd" id="1_st2d5"]
+[ext_resource type="Script" uid="uid://bo6sgoc00ixpn" path="res://Scripts/Network/network_manager.gd" id="1_st2d5"]
 [ext_resource type="PackedScene" uid="uid://d0snaxesmklxu" path="res://Assets/3D/World/Models/FBX format/patch-grass-large.fbx" id="2_4gwvo"]
 [ext_resource type="PackedScene" uid="uid://o82fk4lwjw4i" path="res://Assets/3D/CollisionShapes/patch_grass_large_cs.tscn" id="2_j1jxu"]
 [ext_resource type="PackedScene" uid="uid://csbrjd27mhc40" path="res://Assets/3D/World/Models/FBX format/resource-stone-large.fbx" id="4_48cxd"]

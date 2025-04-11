@@ -7,10 +7,13 @@ class_name NetworkManager
 @export var status_text : RichTextLabel
 
 var enet = ENetMultiplayerPeer.new();
+var test_func : Callable;
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
 	var args : PackedStringArray = OS.get_cmdline_args()
+	
+	test_func = Callable(_dis_test)
 	
 	if args.has("server"):
 		_create_server()
@@ -34,7 +37,12 @@ func _connect_client():
 		status_text.add_text("client")
 
 func _on_peer_connected(peer_id):
+	if test_func:
+		test_func.call()
 	print("%s connected" % peer_id)
 
 func _on_connected_to_server():
 	print("connected to server")
+
+func _dis_test():
+	print("it werk")
