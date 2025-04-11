@@ -4,7 +4,7 @@ extends CharacterBody3D
 @onready var navigation_agent: NavigationAgent3D = get_node("NavigationAgent3D")
 @onready var body: Node3D = get_node("Body")
 @onready var body_ap: AnimationPlayer = get_node("Body/AnimationPlayer")
-@export var network_manager: NetworkManager;
+@onready var network_manager: NetworkManager = get_node("/root/Network_Manager");
 @export var cursor_dot : PackedScene;
 
 var current_cursor_dot : MeshInstance3D = null

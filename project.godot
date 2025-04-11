@@ -11,9 +11,12 @@ config_version=5
 [application]
 
 config/name="NetworkingLearning"
-run/main_scene="res://MainGameScene.tscn"
+run/main_scene="res://Scenes/Levels/MainGameScene.tscn"
 config/features=PackedStringArray("4.4", "Forward Plus")
-config/icon="res://icon.svg"
+
+[autoload]
+
+Network_Manager="*res://Scenes/Objects/network_manager.tscn"
 
 [dotnet]
 
