@@ -271,21 +271,25 @@ transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, -3.18882, 0, -1.43196)
 [node name="grass-large4" parent="World/NavigationRegion3D" groups=["Ground"] instance=ExtResource("26_ml8by")]
 transform = Transform3D(0.658309, 0, -0.752748, 0, 1, 0, 0.752748, 0, 0.658309, -3.3477, 0.338085, -2.5005)
 
-[node name="CharacterBody3D" type="CharacterBody3D" parent="."]
+[node name="NetworkObject" type="Node" parent="."]
+script = ExtResource("34_lpmu7")
+metadata/_custom_type_script = "uid://cew7fvp54i334"
+
+[node name="CharacterBody3D" type="CharacterBody3D" parent="NetworkObject"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.321566, 0.5, 0)
 script = ExtResource("28_s7w2q")
 cursor_dot = ExtResource("29_ufqot")
 
-[node name="Body" parent="CharacterBody3D" instance=ExtResource("30_sttb2")]
+[node name="Body" parent="NetworkObject/CharacterBody3D" instance=ExtResource("30_sttb2")]
 transform = Transform3D(-6.55671e-08, 0, -1.5, 0, 1.5, 0, 1.5, 0, -6.55671e-08, 0, -0.5, 0)
 
-[node name="NavigationAgent3D" type="NavigationAgent3D" parent="CharacterBody3D"]
+[node name="NavigationAgent3D" type="NavigationAgent3D" parent="NetworkObject/CharacterBody3D"]
 target_desired_distance = 0.55
 
-[node name="Camera3D" type="Camera3D" parent="CharacterBody3D"]
+[node name="Camera3D" type="Camera3D" parent="NetworkObject/CharacterBody3D"]
 transform = Transform3D(-0.035353, -0.791027, 0.610758, 0, 0.61114, 0.791522, -0.999375, 0.0279827, -0.0216056, 2.29954, 2.72385, -0.00466461)
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="CharacterBody3D"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="NetworkObject/CharacterBody3D"]
 shape = SubResource("BoxShape3D_j1jxu")
 
 [node name="character-female-b" parent="." instance=ExtResource("31_ie4sm")]
@@ -296,6 +300,3 @@ transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, -6.13805, 0, -1.92559)
 
 [node name="character-male-f" parent="." instance=ExtResource("33_31rbk")]
 transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, -6.93575, 0, -1.84584)
-
-[node name="NetworkObject" type="Node" parent="."]
-script = ExtResource("34_lpmu7")

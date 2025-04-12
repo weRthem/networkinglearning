@@ -4,16 +4,19 @@ extends CharacterBody3D
 @onready var navigation_agent: NavigationAgent3D = get_node("NavigationAgent3D")
 @onready var body: Node3D = get_node("Body")
 @onready var body_ap: AnimationPlayer = get_node("Body/AnimationPlayer")
-@onready var network_manager: NetworkManager = get_node("/root/Network_Manager");
 @export var cursor_dot : PackedScene;
 
 var current_cursor_dot : MeshInstance3D = null
+var network_object : NetworkObject
 
 func _ready() -> void:
 	navigation_agent.velocity_computed.connect(Callable(_on_velocity_computed))
 	navigation_agent.target_reached.connect(Callable(_on_arrived_at_target))
+	
+	if get_parent() is NetworkObject:
+		network_object = get_parent()
 
-@rpc("authority", "call_local", "unreliable")
+@rpc("any_peer", "call_local", "unreliable")
 func set_movement_target(movement_target: Vector3):
 	navigation_agent.set_target_position(movement_target)
 	body_ap.play("walk")
@@ -43,7 +46,7 @@ func _on_arrived_at_target():
 		current_cursor_dot.queue_free()
 
 func _input(event: InputEvent) -> void:
-	if !network_manager.multiplayer.is_server():
+	if !network_object._is_owner():
 		return
 	
 	if event is InputEventMouseButton && event.is_pressed():
