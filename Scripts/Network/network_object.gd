@@ -29,10 +29,6 @@ func _on_network_ready():
 	network_manager.register_network_object(self)
 	on_network_ready.emit()
 	
-	if !network_manager.is_server:
-		print(network_manager.network_id)
-		_request_ownership.rpc_id(1)
-	
 	if network_manager.on_server_started.is_connected(on_network_ready_callable):
 		network_manager.on_server_started.disconnect(on_network_ready_callable)
 
@@ -54,7 +50,7 @@ func _request_ownership():
 		return
 	
 	if validate_ownership_change_callable:
-		if validate_ownership_change_callable.call():
+		if validate_ownership_change_callable.call(sender_id):
 			_change_owner.rpc(sender_id)
 	else:
 		_change_owner.rpc(sender_id)

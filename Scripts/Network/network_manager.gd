@@ -62,7 +62,7 @@ func _create_data(player_id : int, player_name : String) -> ConnectedPlayerData:
 	return server_data
 
 func register_network_object(network_object : NetworkObject) -> void:
-	if !network_object:
+	if !is_instance_valid(network_object):
 		return
 	
 	if !multiplayer.is_server() && network_object.owner_id != network_id:
@@ -81,7 +81,7 @@ func register_network_object(network_object : NetworkObject) -> void:
 	print("added network object")
 
 func _switch_network_object_owner(new_owner : int, network_object : NetworkObject):
-	if !network_object:
+	if !is_instance_valid(network_object):
 		return
 		
 	for player in connected_player_data:
