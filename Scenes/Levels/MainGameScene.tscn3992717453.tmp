@@ -84,7 +84,7 @@ offset_left = 512.0
 offset_top = 224.0
 offset_right = 640.0
 offset_bottom = 255.0
-text = "127.0.0.1"
+text = "192.168.0.1"
 
 [node name="Port Label" type="Label" parent="UI/ConnectionMenu"]
 layout_mode = 0

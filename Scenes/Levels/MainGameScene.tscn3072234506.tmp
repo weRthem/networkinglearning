@@ -58,17 +58,17 @@ anchors_preset = 0
 offset_right = 40.0
 offset_bottom = 40.0
 
+[node name="RichTextLabel" type="RichTextLabel" parent="UI"]
+layout_mode = 0
+offset_right = 252.0
+offset_bottom = 40.0
+text = "test"
+
 [node name="ConnectionMenu" type="Control" parent="UI"]
 anchors_preset = 0
 offset_right = 1152.0
 offset_bottom = 648.0
 script = ExtResource("1_1ovkb")
-
-[node name="RichTextLabel" type="RichTextLabel" parent="UI/ConnectionMenu"]
-layout_mode = 0
-offset_right = 252.0
-offset_bottom = 40.0
-text = "test"
 
 [node name="IP Label" type="Label" parent="UI/ConnectionMenu"]
 layout_mode = 0
@@ -84,7 +84,7 @@ offset_left = 512.0
 offset_top = 224.0
 offset_right = 640.0
 offset_bottom = 255.0
-text = "127.0.0.1"
+text = "192.168.0.1"
 
 [node name="Port Label" type="Label" parent="UI/ConnectionMenu"]
 layout_mode = 0

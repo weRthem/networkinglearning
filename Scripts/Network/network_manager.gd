@@ -16,29 +16,28 @@ signal on_server_started
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
-	var args : PackedStringArray = OS.get_cmdline_args()
-	
-	if args.has("server"):
-		_create_server()
-	else:
-		_connect_client()
+	pass
 
 func _create_server():
 	var err : Error = enet.create_server(port)
 	
 	if err != OK:
+		printerr(err)
 		return
-	
+		
 	multiplayer.multiplayer_peer = enet
 	connected_player_data.append(_create_data(1, "server"))
 	multiplayer.peer_connected.connect(_on_peer_connected)
 	network_started = true
 	is_server = multiplayer.is_server()
+	on_server_started.emit()
+	network_id = multiplayer.get_unique_id()
 
 func _connect_client():
 	var err : Error = enet.create_client(ip, port)
 	
 	if err != OK:
+		printerr(err)
 		return
 	
 	multiplayer.multiplayer_peer = enet;

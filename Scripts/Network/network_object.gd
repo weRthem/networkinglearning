@@ -28,7 +28,7 @@ func _on_network_ready():
 	has_initialized = true
 	network_manager.register_network_object(self)
 	on_network_ready.emit()
-	
+
 	if network_manager.on_server_started.is_connected(on_network_ready_callable):
 		network_manager.on_server_started.disconnect(on_network_ready_callable)
 
