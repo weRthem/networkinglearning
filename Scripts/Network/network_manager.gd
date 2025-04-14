@@ -11,6 +11,7 @@ var connected_player_data : Array[ConnectedPlayerData] = []
 var network_id : int
 var is_server : bool = false
 var network_started : bool = false
+var current_object_id_number = 0
 
 signal on_server_started
 
@@ -28,6 +29,7 @@ func _create_server():
 	multiplayer.multiplayer_peer = enet
 	connected_player_data.append(_create_data(1, "server"))
 	multiplayer.peer_connected.connect(_on_peer_connected)
+	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
 	network_started = true
 	is_server = multiplayer.is_server()
 	on_server_started.emit()
@@ -46,6 +48,32 @@ func _connect_client():
 func _on_peer_connected(peer_id):
 	connected_player_data.append(_create_data(peer_id, "client"))
 	print("%s connected" % peer_id)
+	for player in connected_player_data:
+		if !is_instance_valid(player):
+			connected_player_data.erase(player)
+		
+		if player.network_id == peer_id:
+			for network_object in player.players_objects:
+				if !is_instance_valid(network_object):
+					continue
+				network_object._destroy_network_object.rpc()
+			connected_player_data.erase(player)
+			continue
+		
+		for network_object in player.players_objects:
+			network_object._initialize_network_object.rpc(network_object.object_id,
+			 network_object.owner_id,
+			 var_to_bytes(network_object._get_transforms()))
+
+func _on_peer_disconnected(peer_id):
+	var disconnected_player : ConnectedPlayerData
+	for player in connected_player_data:
+		if player.network_id == peer_id:
+			disconnected_player = player
+			break;
+			
+	for network_object in disconnected_player.players_objects:
+		network_object._destroy_network_object.rpc()
 
 func _on_connected_to_server():
 	network_id = multiplayer.get_unique_id()
@@ -66,6 +94,13 @@ func register_network_object(network_object : NetworkObject) -> void:
 	
 	if !multiplayer.is_server() && network_object.owner_id != network_id:
 		return
+	
+	if is_server:
+		network_object.object_id = current_object_id_number
+		current_object_id_number += 1
+		network_object._initialize_network_object.rpc(network_object.object_id,
+		 network_object.owner_id,
+		 var_to_bytes(network_object._get_transforms()))
 	
 	for player in connected_player_data:
 		if player.network_id != network_object.owner_id:
@@ -91,3 +126,10 @@ func _switch_network_object_owner(new_owner : int, network_object : NetworkObjec
 			player.players_objects.append(network_object)
 			
 	print("switched network object")
+
+func _remove_network_object(network_object : NetworkObject):
+	for player in connected_player_data:
+		if player.network_id == network_object.owner_id:
+			if player.players_objects.has(network_object):
+				player.players_objects.erase(network_object)
+				return
