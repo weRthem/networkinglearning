@@ -1,0 +1,28 @@
+[gd_scene load_steps=7 format=3 uid="uid://chavcn5r82fw2"]
+
+[ext_resource type="Script" uid="uid://cew7fvp54i334" path="res://Scripts/Network/network_object.gd" id="1_pwa2e"]
+[ext_resource type="Script" uid="uid://dxi2n71ieh4xq" path="res://character_body_3d.gd" id="2_qrvxs"]
+[ext_resource type="PackedScene" uid="uid://cxded1tn5eqcc" path="res://Scenes/Objects/CursorDot.tscn" id="3_u5k2t"]
+[ext_resource type="PackedScene" uid="uid://dolnbkjklkbff" path="res://Assets/3D/Characters/Models/FBX format/character-male-f.fbx" id="4_8xfeu"]
+[ext_resource type="PackedScene" uid="uid://b6vbqutw05p8e" path="res://Scenes/Objects/camera.tscn" id="4_15rnv"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_j1jxu"]
+
+[node name="Male 2" type="Node"]
+script = ExtResource("1_pwa2e")
+metadata/_custom_type_script = "uid://cew7fvp54i334"
+
+[node name="CharacterBody3D" type="CharacterBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.321566, 0.5, 0)
+script = ExtResource("2_qrvxs")
+cursor_dot = ExtResource("3_u5k2t")
+camera = ExtResource("4_15rnv")
+
+[node name="Body" parent="CharacterBody3D" instance=ExtResource("4_8xfeu")]
+transform = Transform3D(-6.55671e-08, 0, -1.5, 0, 1.5, 0, 1.5, 0, -6.55671e-08, 0, -0.5, 0)
+
+[node name="NavigationAgent3D" type="NavigationAgent3D" parent="CharacterBody3D"]
+target_desired_distance = 0.55
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CharacterBody3D"]
+shape = SubResource("BoxShape3D_j1jxu")

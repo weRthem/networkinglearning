@@ -7,7 +7,11 @@ class_name NetworkObject
 var owner_id : int = 1
 var object_id : int = -1
 var has_initialized : bool = false
+var resource_path : String
+var spawn_args : Dictionary
+
 var on_network_ready_callable : Callable
+
 var validate_ownership_change_callable : Callable
 var validate_destroy_request_callable : Callable
 
@@ -17,22 +21,19 @@ signal on_network_destroy()
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
-	on_network_ready_callable = Callable(_on_network_ready)
+	on_network_ready_callable = Callable(_on_network_start)
 	if !network_manager.network_started:
 		network_manager.on_server_started.connect(on_network_ready_callable)
 	else:
-		_on_network_ready()
+		_on_network_start()
 
-func _on_network_ready():
+func _on_network_start():
 	if has_initialized:
 		return
 	
 	has_initialized = true
 	network_manager.register_network_object(self)
 	
-	if !network_manager.is_server:
-		_request_ownership.rpc_id(1)
-
 	if network_manager.on_server_started.is_connected(on_network_ready_callable):
 		network_manager.on_server_started.disconnect(on_network_ready_callable)
 
@@ -94,20 +95,21 @@ func _change_owner(new_owner : int):
 	owner_id = new_owner
 
 @rpc("authority", "call_remote", "reliable", 10)
-func _initialize_network_object(object_id : int, owner_id : int, transforms : PackedByteArray):
+func _initialize_network_object(object_id : int, owner_id : int, transforms : Dictionary):
 	self.object_id = object_id
 	self.owner_id = owner_id
-	var dict : Dictionary = bytes_to_var(transforms)
+	
+	print("setting transforms")
 	
 	var children_transforms := _get_all_children_transforms(self)
 	
 	for child in children_transforms:
 		var child_path = child.get_path()
-		if dict.has(child_path):
-			child.transform = dict[child_path]
+		if transforms.has(child_path):
+			child.transform = transforms[child_path]
 	
 	on_network_ready.emit()
-	pass
+	
 
 @rpc("any_peer", "call_local", "reliable", 10)
 func _request_destroy_network_object():

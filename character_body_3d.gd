@@ -5,9 +5,12 @@ extends CharacterBody3D
 @onready var body: Node3D = get_node("Body")
 @onready var body_ap: AnimationPlayer = get_node("Body/AnimationPlayer")
 @export var cursor_dot : PackedScene;
+@export var camera : PackedScene;
 
 var current_cursor_dot : MeshInstance3D = null
 var network_object : NetworkObject
+var my_camera : Camera3D
+
 
 func _ready() -> void:
 	navigation_agent.velocity_computed.connect(Callable(_on_velocity_computed))
@@ -15,6 +18,15 @@ func _ready() -> void:
 	
 	if get_parent() is NetworkObject:
 		network_object = get_parent()
+		network_object.on_network_ready.connect(_on_network_ready)
+
+func _on_network_ready():
+	print("network is ready")
+	if !network_object._is_owner(): return
+	print("spawning camera")
+	my_camera = camera.instantiate()
+	add_child(my_camera)
+	
 
 @rpc("any_peer", "call_local", "unreliable")
 func set_movement_target(movement_target: Vector3):
@@ -46,16 +58,15 @@ func _on_arrived_at_target():
 		current_cursor_dot.queue_free()
 
 func _input(event: InputEvent) -> void:
-	if !network_object._is_owner():
+	if !network_object._is_owner() || !is_instance_valid(my_camera):
 		return
 	
 	if event is InputEventMouseButton && event.is_pressed():
 		if event.button_index != MOUSE_BUTTON_LEFT:
 			return
-		var mousePos=get_viewport().get_mouse_position()
-		var camera = get_viewport().get_camera_3d()
-		var ray_origin = camera.project_ray_origin(mousePos)
-		var ray_end = ray_origin + camera.project_ray_normal(mousePos) * 5000
+		var mousePos = get_viewport().get_mouse_position()
+		var ray_origin = my_camera.project_ray_origin(mousePos)
+		var ray_end = ray_origin + my_camera.project_ray_normal(mousePos) * 5000
 		
 		var space_state = get_world_3d().direct_space_state
 		var intersection = space_state.intersect_ray(

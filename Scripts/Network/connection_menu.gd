@@ -6,6 +6,7 @@ extends Control
 @onready var host_btn : Button = get_node("HostBtn")
 @onready var network_manager : NetworkManager = get_node("/root/Network_Manager")
 @onready var text : RichTextLabel = get_node("RichTextLabel")
+@onready var character_select_menu : Control = get_node("/root/Node3D/UI/CharacterSelectMenu")
 
 func _ready() -> void:
 	network_manager.on_server_started.connect(_on_connected_to_server)
@@ -19,6 +20,7 @@ func _on_connected_to_server():
 		status_text = "server"
 	
 	text.add_text(status_text)
+	character_select_menu.show()
 	hide()
 
 func _host():
