@@ -1,22 +1,19 @@
-[gd_scene load_steps=7 format=3 uid="uid://dhjc30f28dwrr"]
+[gd_scene load_steps=5 format=3 uid="uid://dhjc30f28dwrr"]
 
-[ext_resource type="Script" uid="uid://cew7fvp54i334" path="res://Scripts/Network/network_object.gd" id="1_0is1r"]
+[ext_resource type="Script" uid="uid://boxcg52tc3doj" path="res://Scripts/Network/character_network.gd" id="1_cuwup"]
 [ext_resource type="Script" uid="uid://dxi2n71ieh4xq" path="res://character_body_3d.gd" id="2_tnogi"]
-[ext_resource type="PackedScene" uid="uid://cxded1tn5eqcc" path="res://Scenes/Objects/CursorDot.tscn" id="3_3ujgw"]
 [ext_resource type="PackedScene" uid="uid://dt2i0ybcsif3o" path="res://Assets/3D/Characters/Models/FBX format/character-female-b.fbx" id="4_fyspj"]
-[ext_resource type="PackedScene" uid="uid://b6vbqutw05p8e" path="res://Scenes/Objects/camera.tscn" id="4_tnogi"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_j1jxu"]
 
 [node name="Girl 2" type="Node"]
-script = ExtResource("1_0is1r")
+script = ExtResource("1_cuwup")
+spawn_client_on_server = true
 metadata/_custom_type_script = "uid://cew7fvp54i334"
 
 [node name="CharacterBody3D" type="CharacterBody3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.321566, 0.5, 0)
 script = ExtResource("2_tnogi")
-cursor_dot = ExtResource("3_3ujgw")
-camera = ExtResource("4_tnogi")
 
 [node name="Body" parent="CharacterBody3D" instance=ExtResource("4_fyspj")]
 transform = Transform3D(-6.55671e-08, 0, -1.5, 0, 1.5, 0, 1.5, 0, -6.55671e-08, 0, -0.5, 0)

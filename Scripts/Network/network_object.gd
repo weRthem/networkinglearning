@@ -10,7 +10,7 @@ var has_initialized : bool = false
 var resource_path : String
 var spawn_args : Dictionary
 
-var on_network_ready_callable : Callable
+var on_network_start_callable : Callable
 
 var validate_ownership_change_callable : Callable
 var validate_destroy_request_callable : Callable
@@ -21,11 +21,12 @@ signal on_network_destroy()
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
-	on_network_ready_callable = Callable(_on_network_start)
+	on_network_start_callable = Callable(_on_network_start)
 	if !network_manager.network_started:
-		network_manager.on_server_started.connect(on_network_ready_callable)
+		network_manager.on_server_started.connect(on_network_start_callable)
 	else:
 		_on_network_start()
+		
 
 func _on_network_start():
 	if has_initialized:
@@ -34,8 +35,8 @@ func _on_network_start():
 	has_initialized = true
 	network_manager.register_network_object(self)
 	
-	if network_manager.on_server_started.is_connected(on_network_ready_callable):
-		network_manager.on_server_started.disconnect(on_network_ready_callable)
+	if network_manager.on_server_started.is_connected(on_network_start_callable):
+		network_manager.on_server_started.disconnect(on_network_start_callable)
 
 func _is_owner() -> bool:
 	if owner_id == network_manager.network_id:
@@ -94,20 +95,22 @@ func _change_owner(new_owner : int):
 	print("old owner: %s new owner: %s" % [owner_id, new_owner])
 	owner_id = new_owner
 
-@rpc("authority", "call_remote", "reliable", 10)
-func _initialize_network_object(object_id : int, owner_id : int, transforms : Dictionary):
-	self.object_id = object_id
-	self.owner_id = owner_id
+@rpc("authority", "call_local", "reliable", 10)
+func _initialize_network_object(objects_id : int, owners_id : int, transforms : Dictionary):
+	if !network_manager.is_server:
+		self.object_id = objects_id
+		self.owner_id = owners_id
+		
+		print("setting transforms")
+		
+		var children_transforms := _get_all_children_transforms(self)
+		
+		for child in children_transforms:
+			var child_path = child.get_path()
+			if transforms.has(child_path):
+				child.transform = transforms[child_path]
 	
-	print("setting transforms")
-	
-	var children_transforms := _get_all_children_transforms(self)
-	
-	for child in children_transforms:
-		var child_path = child.get_path()
-		if transforms.has(child_path):
-			child.transform = transforms[child_path]
-	
+	print("calling on network ready")
 	on_network_ready.emit()
 	
 

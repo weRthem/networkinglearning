@@ -123,7 +123,6 @@ func register_network_object(network_object : NetworkObject) -> void:
 		network_object._initialize_network_object.rpc(network_object.object_id,
 		 network_object.owner_id,
 		 network_object._get_transforms())
-		network_object.on_network_ready.emit()
 	
 	for player in connected_player_data:
 		if player.network_id != network_object.owner_id:
