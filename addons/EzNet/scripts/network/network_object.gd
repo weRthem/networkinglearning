@@ -3,6 +3,9 @@ class_name NetworkObject extends Node
 ## The name of the autoloaded network manager node 
 @export var network_manager_name = "Network_Manager"
 
+## Sets the owner of this network object to the server on disconnect
+@export var set_server_to_owner_on_disconnect : bool = false
+
 ## grabs the autoloaded network manager
 @onready var network_manager : NetworkManager = get_node("/root/%s" % network_manager_name)
 
@@ -117,7 +120,7 @@ func _request_ownership():
 ## Called from the server when it changes the ownership of this network object
 @rpc("authority", "call_local", "reliable", 10)
 func _change_owner(new_owner : int):
-	if network_manager.is_server || new_owner == network_manager.network_id:
+	if network_manager.is_server || new_owner == network_manager.network_id || _is_owner():
 		network_manager._switch_network_object_owner(new_owner, self)
 	on_owner_changed.emit(owner_id, new_owner)
 	print("old owner: %s new owner: %s" % [owner_id, new_owner])
