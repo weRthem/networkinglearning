@@ -24,11 +24,11 @@ func _on_connected_to_server():
 	hide()
 
 func _host():
-	network_manager.port = port_field.text as int
+	network_manager.networker.port = port_field.text as int
 	network_manager._create_server()
 
 func _connect():
-	network_manager.ip = ip_field.text
-	network_manager.port = port_field.text as int
+	network_manager.networker.ip = ip_field.text
+	network_manager.networker.port = port_field.text as int
 	
 	network_manager._connect_client()

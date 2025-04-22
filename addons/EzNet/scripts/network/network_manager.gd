@@ -1,10 +1,8 @@
 class_name NetworkManager extends Node
 
-@export var ip : String = "127.0.0.1"
-@export var port : int = 9999
+@export var networker : Networker
 @export var max_clients : int = 4
 
-var enet = ENetMultiplayerPeer.new();
 var connected_player_data : Array[ConnectedPlayerData] = []
 var network_id : int
 var is_server : bool = false
@@ -18,13 +16,10 @@ var validate_spawn_callable : Callable
 signal on_server_started
 
 func _create_server():
-	var err : Error = enet.create_server(port)
+	multiplayer.multiplayer_peer = networker.host()
 	
-	if err != OK:
-		printerr(err)
-		return
-		
-	multiplayer.multiplayer_peer = enet
+	if multiplayer.multiplayer_peer == null: return
+	
 	connected_player_data.append(_create_data(1, "server"))
 	multiplayer.peer_connected.connect(_on_peer_connected)
 	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
@@ -34,13 +29,10 @@ func _create_server():
 	network_id = multiplayer.get_unique_id()
 
 func _connect_client():
-	var err : Error = enet.create_client(ip, port)
+	multiplayer.multiplayer_peer = networker.connect_client()
 	
-	if err != OK:
-		printerr(err)
-		return
+	if multiplayer.multiplayer_peer == null: return
 	
-	multiplayer.multiplayer_peer = enet;
 	multiplayer.connected_to_server.connect(_on_connected_to_server)
 
 func _on_peer_connected(peer_id):
@@ -58,6 +50,9 @@ func _on_peer_connected(peer_id):
 				network_object._destroy_network_object.rpc()
 			connected_player_data.erase(player)
 			continue
+			
+		if connected_player_data.size() >= max_clients:
+			multiplayer.multiplayer_peer.refuse_new_connections = true
 		
 		for network_object in player.players_objects:
 			if network_object.resource_path.is_empty():
@@ -91,6 +86,11 @@ func _on_peer_disconnected(peer_id):
 		
 	for network_object in disconnected_player.players_objects:
 		network_object._destroy_network_object.rpc()
+		
+	connected_player_data.erase(disconnected_player)
+	
+	if connected_player_data.size() < max_clients:
+			multiplayer.multiplayer_peer.refuse_new_connections = false
 
 func _on_connected_to_server():
 	network_id = multiplayer.get_unique_id()

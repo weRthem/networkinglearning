@@ -1,7 +1,0 @@
-[gd_scene load_steps=2 format=3 uid="uid://x58ce1unf36j"]
-
-[ext_resource type="Script" uid="uid://bo6sgoc00ixpn" path="res://Scripts/Network/network_manager.gd" id="1_7a33m"]
-
-[node name="Network Manager" type="Node" node_paths=PackedStringArray("status_text")]
-script = ExtResource("1_7a33m")
-status_text = NodePath("")

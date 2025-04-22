@@ -1,7 +1,10 @@
 class_name NetworkObject extends Node
 
+## The name of the autoloaded network manager node 
+@export var network_manager_name = "Network_Manager"
+
 ## grabs the autoloaded network manager
-@onready var network_manager : NetworkManager = get_node("/root/Network_Manager")
+@onready var network_manager : NetworkManager = get_node("/root/%s" % network_manager_name)
 
 ## The network id of the connection that owns this object
 var owner_id : int = 1
