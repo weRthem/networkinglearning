@@ -1,33 +1,52 @@
-extends Node
+class_name NetworkObject extends Node
 
-class_name NetworkObject
-
+## grabs the autoloaded network manager
 @onready var network_manager : NetworkManager = get_node("/root/Network_Manager")
 
+## The network id of the connection that owns this object
 var owner_id : int = 1
+## the id of this object. Increases in order 0 to N
 var object_id : int = -1
+## is true if this network object has started its initialization
 var has_initialized : bool = false
+
+## The resource path that this network object was loaded from
 var resource_path : String
+
+## The arguments that this network object used to spawn 
+## e.g. position, rotation, color
 var spawn_args : Dictionary
 
-var on_network_start_callable : Callable
-
+## Gets called on the server when a player requests ownership of an object
+##
+## @tutorial validate_request_ownership(sender_id : int) -> bool:
 var validate_ownership_change_callable : Callable
+
+## Gets emitted when the network object finishes initializing
+signal on_network_ready()
+
+## Gets called on the server when a player requests to destroy an object
+##
+## @tutorial validate_request_destroy(sender_id : int) -> bool:
 var validate_destroy_request_callable : Callable
 
-signal on_owner_changed(old_owner, new_owner)
-signal on_network_ready()
+## Gets emitted when the server changes the owner of an object
+##
+## @tutorial _on_ownership_change(old_owner_id : int, new_owner_id):
+signal on_owner_changed(old_owner : int, new_owner : int)
+
+
+## Gets emitted when the server destroys a network object
 signal on_network_destroy()
 
-# Called when the node enters the scene tree for the first time.
 func _ready() -> void:
-	on_network_start_callable = Callable(_on_network_start)
 	if !network_manager.network_started:
-		network_manager.on_server_started.connect(on_network_start_callable)
+		network_manager.on_server_started.connect(_on_network_start)
 	else:
 		_on_network_start()
 		
 
+## Do not override. Used for internal logic
 func _on_network_start():
 	if has_initialized:
 		return
@@ -35,15 +54,17 @@ func _on_network_start():
 	has_initialized = true
 	network_manager.register_network_object(self)
 	
-	if network_manager.on_server_started.is_connected(on_network_start_callable):
-		network_manager.on_server_started.disconnect(on_network_start_callable)
+	if network_manager.on_server_started.is_connected(_on_network_start):
+		network_manager.on_server_started.disconnect(_on_network_start)
 
+## Returns true if this client owns this network object
 func _is_owner() -> bool:
 	if owner_id == network_manager.network_id:
 		return true
 	
 	return false
 
+## returns all children transforms of this network object as a dictionary
 func _get_transforms() -> Dictionary:
 	var dict : Dictionary = {}
 	
@@ -54,6 +75,7 @@ func _get_transforms() -> Dictionary:
 	
 	return dict
 
+## returns all immediate child transforms of a node as an array
 func _get_all_children_transforms(node : Node) -> Array[Node]:
 	var nodes : Array[Node] = []
 
@@ -69,6 +91,9 @@ func _get_all_children_transforms(node : Node) -> Array[Node]:
 
 	return nodes
 
+## Requests ownership of this network object from the server. 
+## 
+## @tutorial _request_ownership.rpc_id(1)
 @rpc("any_peer", "reliable", "call_local", 10)
 func _request_ownership():
 	var sender_id : int = network_manager.multiplayer.get_remote_sender_id()
@@ -86,15 +111,17 @@ func _request_ownership():
 	else:
 		_change_owner.rpc(sender_id)
 
+## Called from the server when it changes the ownership of this network object
 @rpc("authority", "call_local", "reliable", 10)
 func _change_owner(new_owner : int):
 	if network_manager.is_server || new_owner == network_manager.network_id:
 		network_manager._switch_network_object_owner(new_owner, self)
-	set_multiplayer_authority(new_owner)
 	on_owner_changed.emit(owner_id, new_owner)
 	print("old owner: %s new owner: %s" % [owner_id, new_owner])
 	owner_id = new_owner
 
+## does the preliminary setup of an object such as syncing its position when
+## spawned or connected to the network
 @rpc("authority", "call_local", "reliable", 10)
 func _initialize_network_object(objects_id : int, owners_id : int, transforms : Dictionary):
 	if !network_manager.is_server:
@@ -114,6 +141,7 @@ func _initialize_network_object(objects_id : int, owners_id : int, transforms : 
 	on_network_ready.emit()
 	
 
+## Used to request the server to destroy this network object
 @rpc("any_peer", "call_local", "reliable", 10)
 func _request_destroy_network_object():
 	var sender_id : int = network_manager.multiplayer.get_remote_sender_id()
@@ -123,7 +151,7 @@ func _request_destroy_network_object():
 	else:
 		_destroy_network_object.rpc()
 
-
+## Called by the server when it want's to destroy this network object
 @rpc("authority", "call_local", "reliable", 10)
 func _destroy_network_object():
 	if _is_owner() || network_manager.is_server:

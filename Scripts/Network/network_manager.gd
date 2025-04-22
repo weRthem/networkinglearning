@@ -1,6 +1,4 @@
-extends Node
-
-class_name NetworkManager
+class_name NetworkManager extends Node
 
 @export var ip : String = "127.0.0.1"
 @export var port : int = 9999
@@ -16,11 +14,8 @@ var current_object_id_number = 0
 var validate_request_spawn_callable : Callable
 var validate_spawn_callable : Callable
 
+## Emitted when the server has started or this client has connected to the server
 signal on_server_started
-
-# Called when the node enters the scene tree for the first time.
-func _ready() -> void:
-	pass
 
 func _create_server():
 	var err : Error = enet.create_server(port)

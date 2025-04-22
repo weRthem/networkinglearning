@@ -4,6 +4,8 @@ class_name CharacterNetwork extends NetworkObject
 
 @onready var my_body : PlayerCharacterBody = get_node("CharacterBody3D")
 
+var validate_input_ray_callable : Callable
+
 ## Called on server when player input is recieved
 ## @tutorial: send_input_ray(ray_origin : Vector3, ray_end : Vector3)
 signal on_player_input_recieved
@@ -34,7 +36,13 @@ func _on_network_ready():
 
 @rpc("any_peer", "call_local", "unreliable", 0)
 func _send_input_ray(ray_origin : Vector3, ray_end : Vector3):
-	on_player_input_recieved.emit(ray_origin, ray_end)
+	if network_manager.multiplayer.get_remote_sender_id() != owner_id: return
+	
+	if validate_input_ray_callable:
+		if validate_input_ray_callable.call(ray_origin, ray_end):
+			on_player_input_recieved.emit(ray_origin, ray_end)
+	else:
+		on_player_input_recieved.emit(ray_origin, ray_end)
 
 @rpc("authority", "call_local", "unreliable", 0)
 func _set_target(target : Vector3):
