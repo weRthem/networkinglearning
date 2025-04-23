@@ -48,6 +48,10 @@ signal on_network_destroy()
 #region godot functions
 ## @tutorial override this and then call super() at the END of your ready function
 func _ready() -> void:
+	if !is_instance_valid(network_manager):
+		printerr("No network manager found. Maybe the name is incorrect or it wasn't auto loaded")
+		return
+	
 	if !network_manager.network_started:
 		network_manager.on_server_started.connect(_on_network_start)
 	else:
