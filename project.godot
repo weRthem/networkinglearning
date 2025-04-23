@@ -16,8 +16,12 @@ config/features=PackedStringArray("4.4", "C#", "Forward Plus")
 
 [autoload]
 
-Network_Manager="*res://addons/EzNet/scenes/Base_Network_Manager.tscn"
+Network_Manager="*res://addons/eznet/scenes/Base_Network_Manager.tscn"
 
 [dotnet]
 
 project/assembly_name="NetworkingLearning"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/eznet/plugin.cfg")

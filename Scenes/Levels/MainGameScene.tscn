@@ -1,9 +1,9 @@
 [gd_scene load_steps=35 format=3 uid="uid://jm2di4gti8v0"]
 
-[ext_resource type="Script" uid="uid://dhafkkc7vit6n" path="res://Scripts/Network/connection_menu.gd" id="1_1ovkb"]
+[ext_resource type="Script" path="res://Scripts/Network/connection_menu.gd" id="1_1ovkb"]
 [ext_resource type="PackedScene" uid="uid://ckpi8kbrk7hlh" path="res://Assets/3D/World/Models/FBX format/tent-canvas-half.fbx" id="2_4uew4"]
 [ext_resource type="Texture2D" uid="uid://orq4ftrynw2c" path="res://Assets/Icons/Girl1.png" id="2_6cmjl"]
-[ext_resource type="Script" uid="uid://gba4h8vy2die" path="res://Scripts/Network/character_select_menu.gd" id="2_nve11"]
+[ext_resource type="Script" path="res://Scripts/Network/character_select_menu.gd" id="2_nve11"]
 [ext_resource type="Texture2D" uid="uid://r7v60a3pkjlv" path="res://Assets/Icons/Girl2.png" id="3_vao08"]
 [ext_resource type="PackedScene" uid="uid://flf8dsml6ral" path="res://Assets/3D/World/Models/FBX format/tool-hammer.fbx" id="3_wlxfc"]
 [ext_resource type="PackedScene" uid="uid://dg4b3itabx5cl" path="res://Assets/3D/World/Models/FBX format/tool-pickaxe.fbx" id="4_hq273"]

@@ -3,8 +3,6 @@ class_name NetworkManager extends Node
 #region variables
 ## The networker for the chosen MultiplayerPeer
 @export var networker : Networker
-## The maximum allowed connections to the server. The server counts as 1
-@export var max_clients : int = 4
 
 ## Stores all the connected players IDs and owned objects
 var connected_player_data : Array[ConnectedPlayerData] = []
@@ -16,9 +14,6 @@ var is_server : bool = false
 var network_started : bool = false
 ## The current tally of object IDs that have been assigned
 var current_object_id_number = 0
-## DO NOT EDIT DIRECTLY. Call _refuse_new_connections(should_refuse : bool)
-## To change if new connections should be refused or not
-var refuse_new_connections = false
 #endregion
 
 #region validators
@@ -121,8 +116,21 @@ func _remove_network_object(network_object : NetworkObject):
 ## even if below the max_clients. If set to false the network manager will allow
 ## new connections up to the max_clients number and then refuse once that is reached
 func _refuse_new_connections(should_refuse : bool):
-	refuse_new_connections = should_refuse
-	multiplayer.multiplayer_peer.refuse_new_connections = refuse_new_connections
+	multiplayer.multiplayer_peer.refuse_new_connections = should_refuse
+
+## returns the current state of whether the network manager is accepting new 
+## connections 
+func _get_refuse_connections() -> bool:
+	return multiplayer.multiplayer_peer.refuse_new_connections
+
+## Call to disconnect from the server or shut down the server
+func _disconnect():
+	multiplayer.multiplayer_peer = null
+	connected_player_data = []
+	network_id = 0
+	current_object_id_number = 0
+	is_server = false
+	network_started = false
 
 #endregion
 
@@ -145,8 +153,6 @@ func _on_peer_connected(peer_id):
 			connected_player_data.erase(player)
 			continue
 			
-		if connected_player_data.size() >= max_clients || refuse_new_connections:
-			multiplayer.multiplayer_peer.refuse_new_connections = true
 		
 		for network_object in player.players_objects:
 			if network_object.resource_path.is_empty():
@@ -187,9 +193,6 @@ func _on_peer_disconnected(peer_id):
 			network_object._change_owner(1)
 		
 	connected_player_data.erase(disconnected_player)
-	
-	if connected_player_data.size() < max_clients && !refuse_new_connections:
-			multiplayer.multiplayer_peer.refuse_new_connections = false
 
 ## Called on clients when a connection to the server is established
 func _on_connected_to_server():
@@ -264,7 +267,7 @@ func _spawn_object(owner_id : int, spawn_args : Dictionary):
 ## Can add custom spawn_args such as "position"
 ## You will need to override the _spawn_object(owner_id : int, spawn_args : Dictionary)
 ## function to use them.
-@rpc("any_peer", "call_local", "reliable", 10)
+@rpc("any_peer", "call_local", "reliable", 2)
 func _request_spawn_object(spawn_args : Dictionary):
 	var requester_id = multiplayer.get_remote_sender_id()
 	
@@ -291,7 +294,7 @@ func _request_spawn_object(spawn_args : Dictionary):
 	
 
 ## Called by the server to spawn a object
-@rpc("authority", "call_local", "reliable", 10)
+@rpc("authority", "call_local", "reliable", 2)
 func _network_spawn_object(
 	owner_id : int,
 	spawn_args : Dictionary):

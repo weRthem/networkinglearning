@@ -1,7 +1,7 @@
 [gd_scene load_steps=5 format=3 uid="uid://chavcn5r82fw2"]
 
-[ext_resource type="Script" uid="uid://boxcg52tc3doj" path="res://Scripts/Network/character_network.gd" id="1_bj8dn"]
-[ext_resource type="Script" uid="uid://dxi2n71ieh4xq" path="res://character_body_3d.gd" id="2_qrvxs"]
+[ext_resource type="Script" path="res://Scripts/Network/character_network.gd" id="1_bj8dn"]
+[ext_resource type="Script" uid="uid://dxi2n71ieh4xq" path="res://Scripts/Network/character_body_3d.gd" id="2_qrvxs"]
 [ext_resource type="PackedScene" uid="uid://dolnbkjklkbff" path="res://Assets/3D/Characters/Models/FBX format/character-male-f.fbx" id="4_8xfeu"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_j1jxu"]

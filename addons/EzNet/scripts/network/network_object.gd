@@ -113,7 +113,7 @@ func _on_network_start():
 ## Requests ownership of this network object from the server. 
 ## 
 ## @tutorial _request_ownership.rpc_id(1)
-@rpc("any_peer", "reliable", "call_local", 10)
+@rpc("any_peer", "reliable", "call_local", 2)
 func _request_ownership():
 	var sender_id : int = network_manager.multiplayer.get_remote_sender_id()
 	print("requested ownership change by %s" % sender_id)
@@ -131,7 +131,7 @@ func _request_ownership():
 		_change_owner.rpc(sender_id)
 
 ## Called from the server when it changes the ownership of this network object
-@rpc("authority", "call_local", "reliable", 10)
+@rpc("authority", "call_local", "reliable", 2)
 func _change_owner(new_owner : int):
 	if network_manager.is_server || new_owner == network_manager.network_id || _is_owner():
 		network_manager._switch_network_object_owner(new_owner, self)
@@ -141,7 +141,7 @@ func _change_owner(new_owner : int):
 
 ## does the preliminary setup of an object such as syncing its position when
 ## spawned or connected to the network
-@rpc("authority", "call_local", "reliable", 10)
+@rpc("authority", "call_local", "reliable", 2)
 func _initialize_network_object(objects_id : int, owners_id : int, transforms : Dictionary):
 	if !network_manager.is_server:
 		self.object_id = objects_id
@@ -161,7 +161,7 @@ func _initialize_network_object(objects_id : int, owners_id : int, transforms : 
 	
 
 ## Used to request the server to destroy this network object
-@rpc("any_peer", "call_local", "reliable", 10)
+@rpc("any_peer", "call_local", "reliable", 2)
 func _request_destroy_network_object():
 	var sender_id : int = network_manager.multiplayer.get_remote_sender_id()
 	if validate_destroy_request_callable:
@@ -171,7 +171,7 @@ func _request_destroy_network_object():
 		_destroy_network_object.rpc()
 
 ## Called by the server when it want's to destroy this network object
-@rpc("authority", "call_local", "reliable", 10)
+@rpc("authority", "call_local", "reliable", 2)
 func _destroy_network_object():
 	if _is_owner() || network_manager.is_server:
 		network_manager._remove_network_object(self)
