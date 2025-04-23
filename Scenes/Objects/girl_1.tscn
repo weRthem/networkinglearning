@@ -1,14 +1,11 @@
-[gd_scene load_steps=5 format=3 uid="uid://bju34m5buno5a"]
+[gd_scene load_steps=4 format=3 uid="uid://bju34m5buno5a"]
 
-[ext_resource type="Script" uid="uid://boxcg52tc3doj" path="res://Scripts/Network/character_network.gd" id="1_mky3q"]
-[ext_resource type="Script" uid="uid://dxi2n71ieh4xq" path="res://character_body_3d.gd" id="2_mky3q"]
+[ext_resource type="Script" uid="uid://dxi2n71ieh4xq" path="res://Scripts/character_body_3d.gd" id="2_mky3q"]
 [ext_resource type="PackedScene" uid="uid://7n10e7yy2sod" path="res://Assets/3D/Characters/Models/FBX format/character-female-f.fbx" id="4_i5yio"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_j1jxu"]
 
 [node name="Girl 1" type="Node"]
-script = ExtResource("1_mky3q")
-spawn_client_on_server = true
 metadata/_custom_type_script = "uid://cew7fvp54i334"
 
 [node name="CharacterBody3D" type="CharacterBody3D" parent="."]
