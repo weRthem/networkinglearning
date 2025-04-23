@@ -1,5 +1,6 @@
 class_name NetworkObject extends Node
 
+#region variables
 ## The name of the autoloaded network manager node 
 @export var network_manager_name = "Network_Manager"
 
@@ -15,54 +16,46 @@ var owner_id : int = 1
 var object_id : int = -1
 ## is true if this network object has started its initialization
 var has_initialized : bool = false
-
 ## The resource path that this network object was loaded from
 var resource_path : String
-
 ## The arguments that this network object used to spawn 
 ## e.g. position, rotation, color
 var spawn_args : Dictionary
+#endregion
 
+#region validators
 ## Gets called on the server when a player requests ownership of an object
 ##
 ## @tutorial validate_request_ownership(sender_id : int) -> bool:
 var validate_ownership_change_callable : Callable
-
-## Gets emitted when the network object finishes initializing
-signal on_network_ready()
-
 ## Gets called on the server when a player requests to destroy an object
 ##
 ## @tutorial validate_request_destroy(sender_id : int) -> bool:
 var validate_destroy_request_callable : Callable
+#endregion
 
+#region signals
+## Gets emitted when the network object finishes initializing
+signal on_network_ready()
 ## Gets emitted when the server changes the owner of an object
 ##
 ## @tutorial _on_ownership_change(old_owner_id : int, new_owner_id):
 signal on_owner_changed(old_owner : int, new_owner : int)
-
-
 ## Gets emitted when the server destroys a network object
 signal on_network_destroy()
+#endregion
 
+#region godot functions
+## @tutorial override this and then call super() at the END of your ready function
 func _ready() -> void:
 	if !network_manager.network_started:
 		network_manager.on_server_started.connect(_on_network_start)
 	else:
 		_on_network_start()
 		
+#endregion
 
-## Do not override. Used for internal logic
-func _on_network_start():
-	if has_initialized:
-		return
-	
-	has_initialized = true
-	network_manager.register_network_object(self)
-	
-	if network_manager.on_server_started.is_connected(_on_network_start):
-		network_manager.on_server_started.disconnect(_on_network_start)
-
+#region public functions
 ## Returns true if this client owns this network object
 func _is_owner() -> bool:
 	if owner_id == network_manager.network_id:
@@ -97,6 +90,22 @@ func _get_all_children_transforms(node : Node) -> Array[Node]:
 
 	return nodes
 
+#endregion
+
+#region signal callbacks
+## Do not override. Used for internal logic
+func _on_network_start():
+	if has_initialized:
+		return
+	
+	has_initialized = true
+	network_manager.register_network_object(self)
+	
+	if network_manager.on_server_started.is_connected(_on_network_start):
+		network_manager.on_server_started.disconnect(_on_network_start)
+#endregion
+
+#region rpc functions
 ## Requests ownership of this network object from the server. 
 ## 
 ## @tutorial _request_ownership.rpc_id(1)
@@ -165,3 +174,4 @@ func _destroy_network_object():
 	
 	on_network_destroy.emit()
 	queue_free()
+#endregion
