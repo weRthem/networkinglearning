@@ -21,6 +21,9 @@ var resource_path : String
 ## The arguments that this network object used to spawn 
 ## e.g. position, rotation, color
 var spawn_args : Dictionary
+## DO NOT MODIFY
+## This is for the server to track which transforms have changed from their original position
+var cached_transforms : Dictionary
 #endregion
 
 #region validators
@@ -74,7 +77,12 @@ func _get_transforms() -> Dictionary:
 	var children := _get_all_children_transforms(self)
 	
 	for child in children:
-		dict.set(child.get_path(), child.transform)
+		var child_path : NodePath = child.get_path()
+		if !cached_transforms.has(child_path):
+			cached_transforms.set(child_path, [child.position, child.rotation, child.scale])
+			dict.set(child_path, child.transform)
+		elif !compare_transform_to_cached_transform(child, cached_transforms.get(child_path)):
+			dict.set(child_path, child.transform)
 	
 	return dict
 
@@ -93,6 +101,57 @@ func _get_all_children_transforms(node : Node) -> Array[Node]:
 			nodes.append(N)
 
 	return nodes
+
+#endregion
+
+#region helper functions
+
+func compare_transform_to_cached_transform(n : Node, cached_transform : Array) -> bool:
+	if n is Node2D:
+		# These three checks can be removed for performance.
+		# They are just here for your protection in case you decided to modify cached_transforms dict
+		# outside of the _get_transforms function
+		if cached_transform[0] is not Vector2: return false
+		if cached_transform[1] is not float: return false
+		if cached_transform[2] is not Vector2: return false
+		
+		# checking positions
+		var pos : Vector2 = cached_transform[0]
+		if !EzUtils.compare_approx_vector2(n.position, pos): return false
+		
+		# checking rotation
+		var rot : float = cached_transform[1]
+		if !EzUtils.compare_approx_float(n.rotation, rot): return false
+		
+		# checking scale
+		var sca : Vector2 = cached_transform[2]
+		if !EzUtils.compare_approx_vector2(n.scale, sca): return false
+		
+		return true
+		
+	elif n is Node3D:
+		# These three checks can be removed for performance.
+		# They are just here for your protection in case you decided to modify cached_transforms dict
+		# outside of the _get_transforms function
+		if cached_transform[0] is not Vector3: return false
+		if cached_transform[1] is not Vector3: return false
+		if cached_transform[2] is not Vector3: return false
+		
+		# checking position
+		var pos : Vector3 = cached_transform[0]
+		if !EzUtils.compare_approx_vector3(n.position, pos): return false
+		
+		# checking rotation
+		var rot : Vector3 = cached_transform[1]
+		if !EzUtils.compare_approx_vector3(n.rotation, rot): return false
+
+		# checking scale
+		var sca : Vector3 = cached_transform[2]
+		if !EzUtils.compare_approx_vector3(n.scale, sca): return false
+		
+		return true
+	
+	return false
 
 #endregion
 

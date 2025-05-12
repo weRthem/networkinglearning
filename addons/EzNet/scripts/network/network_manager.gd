@@ -3,6 +3,7 @@ class_name NetworkManager extends Node
 #region variables
 ## The networker for the chosen MultiplayerPeer
 @export var networker : Networker
+@export var network_ticks_on_seperate_thread : bool = false
 
 ## Stores all the connected players IDs and owned objects
 var connected_player_data : Array[ConnectedPlayerData] = []
@@ -14,6 +15,8 @@ var is_server : bool = false
 var network_started : bool = false
 ## The current tally of object IDs that have been assigned
 var current_object_id_number = 0
+
+var tick_thread : Thread
 #endregion
 
 #region validators
@@ -32,6 +35,9 @@ var validate_spawn_callable : Callable
 #region signals
 ## Emitted when the server has started or this client has connected to the server
 signal on_server_started
+
+## Emitted every network tick
+signal on_tick(tick_number : int)
 #endregion
 
 #region public functions
