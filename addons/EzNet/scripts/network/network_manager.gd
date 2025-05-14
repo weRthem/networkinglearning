@@ -1,9 +1,30 @@
 class_name NetworkManager extends Node
 
+## This controls whether the network ticks are sent reliable, unreliable, or unreliable_ordered
+## Since you can't export constants change this here
+const TICK_TYPE : Tick_Type = Tick_Type.UNRELIABLE
+
+#region constants
+const OWNER_ID_KEY = "owner_id"
+const RESOURCE_PATH_KEY = "resource_path"
+const TICK_TYPES : Dictionary = {
+	Tick_Type.RELIABLE: "reliable",
+	Tick_Type.UNRELIABLE: "unreliable",
+	Tick_Type.UNRELIABLE_ORDERED: "unreliable_ordered"
+}
+#endregion
+
+#region enums
+enum Tick_Type {RELIABLE = 0, UNRELIABLE = 1, UNRELIABLE_ORDERED = 2}
+#endregion
+
 #region variables
 ## The networker for the chosen MultiplayerPeer
 @export var networker : Networker
-@export var network_ticks_on_seperate_thread : bool = false
+## the number of network ticks that occure per second
+@export var ticks_per_second : int = 30
+## determines wheather or not spawns should be batched
+@export var batch_spawns : bool = true
 
 ## Stores all the connected players IDs and owned objects
 var connected_player_data : Array[ConnectedPlayerData] = []
@@ -15,8 +36,12 @@ var is_server : bool = false
 var network_started : bool = false
 ## The current tally of object IDs that have been assigned
 var current_object_id_number = 0
-
-var tick_thread : Thread
+## The servers timer that is used to determine the tick times
+var tick_timer : Timer
+## The numbers of ticks that have occured since the server has started
+var tick_number : int = 0
+## has the info for the current spawns that are batched for the next tick
+var spawn_batch : Array[Dictionary] = []
 #endregion
 
 #region validators
@@ -24,12 +49,19 @@ var tick_thread : Thread
 ## This is where you should validate the path so that no hacking happens.
 ## Should probably limit the network spawnable items to something like 
 ## res://Scenes/Objects/NetworkObjects
-## @tutorial _validate_request_spawn(requester_id : int, )
+## @tutorial _validate_request_spawn(spawn_args : Dictionary)
 var validate_request_spawn_callable : Callable
+
 ## Called on the client and the server when a object is trying to spawn
 ## Should just be used to ensure the validity of the spawn for each client 
 ## in case they are missing some resources
+## @tutorial _validate_spawn(object_owner_id : int, spawn_args : Dictionary)
 var validate_spawn_callable : Callable
+
+## Used to determine if a specific spawn should be batched to spawn on the next tick or not.
+## If this is unassigned the spawn is automatically batched.
+## @tutorial _spawn_batch_logic(object_owner_id : int, spawn_args : Dictionary)
+var spawn_batching_logic : Callable
 #endregion
 
 #region signals
@@ -38,6 +70,7 @@ signal on_server_started
 
 ## Emitted every network tick
 signal on_tick(tick_number : int)
+
 #endregion
 
 #region public functions
@@ -55,6 +88,13 @@ func _create_server():
 	is_server = multiplayer.is_server()
 	on_server_started.emit()
 	network_id = multiplayer.get_unique_id()
+	on_tick.connect(_on_tick)
+	
+	tick_timer = Timer.new()
+	add_child(tick_timer)
+	tick_timer.timeout.connect(_tick)
+	tick_timer.start(1.0 / ticks_per_second)
+	
 
 ## Call to connect a client to a server using the selected Networker
 func _connect_client():
@@ -140,6 +180,21 @@ func _disconnect():
 
 #endregion
 
+#region private functions
+## for the server tick functionality
+## emits the on_tick signal on all the clients and server after network logic is completed
+func _tick():
+	tick_number += 1
+	
+	for player in connected_player_data:
+		_on_network_tick.rpc_id(player.network_id, tick_number)
+	
+	if !spawn_batch.is_empty():
+		_network_spawn_object.rpc(spawn_batch)
+	
+	spawn_batch.clear()
+#endregion
+
 #region network signal callbacks
 
 ## Called on server when a new client connects to the server
@@ -167,8 +222,7 @@ func _on_peer_connected(peer_id):
 				 network_object._get_transforms())
 			elif ResourceLoader.exists(network_object.resource_path):
 				_network_spawn_object.rpc_id(peer_id,
-				network_object.owner_id,
-				network_object.spawn_args
+				[network_object.spawn_args]
 				)
 				network_object._initialize_network_object.rpc_id(peer_id, network_object.object_id,
 				 network_object.owner_id,
@@ -207,6 +261,7 @@ func _on_connected_to_server():
 	print("connected to server with id %s" % network_id)
 	network_started = true
 	on_server_started.emit()
+	on_tick.connect(_on_tick)
 
 #endregion
 
@@ -227,16 +282,13 @@ func _request_spawn_helper(
 		push_error("Invalid resource path %s" % resource_path)
 		return
 	
-	var dict := {
-		"resource_path" : resource_path,
-		"args" : args
-	}
+	args["resource_path"] = resource_path
 	
 	if _verify_spawn_path(resource_path):
 		push_error("Invalid resource path %s" % resource_path)
 		return
 	
-	_request_spawn_object.rpc_id(1, dict)
+	_request_spawn_object.rpc_id(1, args)
 
 ## Just does a VERY basic validation of the spawn path for a object. 
 ## More validation should be down with the 
@@ -245,13 +297,23 @@ func _request_spawn_helper(
 func _verify_spawn_path(resource_path : String) -> bool:
 	return !ResourceLoader.exists(resource_path) || !resource_path.begins_with("res://")
 
+func _handle_spawn_batching(spawn : Dictionary):
+	if batch_spawns:
+		spawn_batch.append(spawn)
+	else:
+		_network_spawn_object.rpc([spawn])
 #endregion
 
 #region overridable functions
 ## Override this function to add custom spawn behaviour. 
 ## Such as adding a spawn arg "position" to choose the spawning position
-func _spawn_object(owner_id : int, spawn_args : Dictionary):
-	var resource_path : String = spawn_args["resource_path"]
+func _spawn_object(spawn_args : Dictionary):
+	var owner_id : int = 1
+	
+	if spawn_args.has(OWNER_ID_KEY):
+		owner_id = spawn_args[OWNER_ID_KEY]
+	
+	var resource_path : String = spawn_args[RESOURCE_PATH_KEY]
 	
 	var obj = load(resource_path).instantiate()
 	
@@ -266,6 +328,10 @@ func _spawn_object(owner_id : int, spawn_args : Dictionary):
 	
 	get_tree().current_scene.add_child(obj)
 
+## Override this function
+## This gets called on the server and clients on each network tick after the core tick logic happens
+func _on_tick(current_tick : int):
+	pass
 #endregion
 
 #region rpc functions
@@ -277,48 +343,52 @@ func _spawn_object(owner_id : int, spawn_args : Dictionary):
 func _request_spawn_object(spawn_args : Dictionary):
 	var requester_id = multiplayer.get_remote_sender_id()
 	
-	if !spawn_args.has("resource_path"):
+	if !spawn_args.has(RESOURCE_PATH_KEY):
 		push_warning("No resource path provided")
 		return
 	
-	var resource_path = spawn_args["resource_path"]
+	var resource_path = spawn_args[RESOURCE_PATH_KEY]
+	spawn_args[OWNER_ID_KEY] = requester_id
+	
 	
 	if _verify_spawn_path(resource_path):
 		push_error("Invalid resource path %s" % resource_path)
 		return
 	
 	if resource_path is not String:
-		push_warning("either resource_path(%s) is not a String" % resource_path)
+		push_error("either resource_path(%s) is not a String" % resource_path)
 		return
 	
-	
+	print("requesting spawn")
 	if validate_request_spawn_callable:
-		if validate_request_spawn_callable.call(requester_id, spawn_args):
-			_network_spawn_object.rpc(requester_id, spawn_args)
+		if validate_request_spawn_callable.call(spawn_args):
+			_handle_spawn_batching(spawn_args)
 	else:
-		_network_spawn_object.rpc(requester_id, spawn_args)
+		_handle_spawn_batching(spawn_args)
 	
 
 ## Called by the server to spawn a object
 @rpc("authority", "call_local", "reliable", 2)
-func _network_spawn_object(
-	owner_id : int,
-	spawn_args : Dictionary):
+func _network_spawn_object(spawns : Array):
+	for spawn in spawns:
+		var resource_path = spawn[RESOURCE_PATH_KEY]
 	
-	var resource_path = spawn_args["resource_path"]
-	
-	if resource_path is not String:
-		push_warning("either resource_path(%s) is not a String" % resource_path)
-		return
-	
-	if !ResourceLoader.exists(resource_path) || !resource_path.begins_with("res://"):
-		push_error("Invalid resource path %s" % resource_path)
-		return
-	
-	if validate_spawn_callable:
-		if validate_spawn_callable.call(owner_id, spawn_args):
-			_spawn_object(owner_id, spawn_args)
-	else:
-		_spawn_object(owner_id, spawn_args)
+		if resource_path is not String:
+			push_warning("either resource_path(%s) is not a String" % resource_path)
+			return
+		
+		if !ResourceLoader.exists(resource_path) || !resource_path.begins_with("res://"):
+			push_error("Invalid resource path %s" % resource_path)
+			return
+		
+		if validate_spawn_callable:
+			if validate_spawn_callable.call(spawn):
+				_spawn_object(spawn)
+		else:
+			_spawn_object(spawn)
 
+
+@rpc("authority", "call_local", TICK_TYPES[TICK_TYPE], 2)
+func _on_network_tick(current_tick : int):
+	on_tick.emit(current_tick)
 #endregion
