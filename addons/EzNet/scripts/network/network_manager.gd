@@ -187,10 +187,12 @@ func _tick():
 	tick_number += 1
 	
 	for player in connected_player_data:
+		if !spawn_batch.is_empty() && player.network_id != 1:
+			_network_spawn_object.rpc_id(player.network_id ,spawn_batch)
 		_on_network_tick.rpc_id(player.network_id, tick_number)
 	
 	if !spawn_batch.is_empty():
-		_network_spawn_object.rpc(spawn_batch)
+		_network_spawn_object.rpc_id(1 ,spawn_batch)
 	
 	spawn_batch.clear()
 #endregion
