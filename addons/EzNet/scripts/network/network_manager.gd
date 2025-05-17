@@ -4,9 +4,15 @@ class_name NetworkManager extends Node
 ## Since you can't export constants change this here
 const TICK_TYPE : Tick_Type = Tick_Type.UNRELIABLE
 
+## The network channel that handles all of the core tick logic e.g. network ticks, sync vars
+const TICK_CHANNEL : int = 1
+## The network channel that handles the core network logic functionality e.g. spawning, object initialization
+const MANAGEMENT_CHANNEL : int = 2
+
 #region constants
-const OWNER_ID_KEY = "owner_id"
-const RESOURCE_PATH_KEY = "resource_path"
+const OWNER_ID_KEY : String = "owner_id"
+const RESOURCE_PATH_KEY : String = "resource_path"
+const OBJECT_ID_KEY : String = "object_id"
 const TICK_TYPES : Dictionary = {
 	Tick_Type.RELIABLE: "reliable",
 	Tick_Type.UNRELIABLE: "unreliable",
@@ -23,8 +29,6 @@ enum Tick_Type {RELIABLE = 0, UNRELIABLE = 1, UNRELIABLE_ORDERED = 2}
 @export var networker : Networker
 ## the number of network ticks that occure per second
 @export var ticks_per_second : int = 30
-## determines wheather or not spawns should be batched
-@export var batch_spawns : bool = true
 
 ## Stores all the connected players IDs and owned objects
 var connected_player_data : Array[ConnectedPlayerData] = []
@@ -81,7 +85,7 @@ func _create_server():
 	
 	if multiplayer.multiplayer_peer == null: return
 	
-	connected_player_data.append(_create_data(1, "server"))
+	connected_player_data.append(_create_player_data(1))
 	multiplayer.peer_connected.connect(_on_peer_connected)
 	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
 	network_started = true
@@ -112,15 +116,14 @@ func register_network_object(network_object : NetworkObject) -> void:
 	if !is_instance_valid(network_object):
 		return
 	
-	if !multiplayer.is_server() && network_object.owner_id != network_id:
-		return
-	
 	if is_server:
 		network_object.object_id = current_object_id_number
 		current_object_id_number += 1
 		network_object._initialize_network_object.rpc(network_object.object_id,
 		 network_object.owner_id,
-		 network_object._get_transforms())
+		 network_object._get_transforms(),
+		 network_object.network_sync_vars
+		)
 	
 	for player in connected_player_data:
 		if player.network_id != network_object.owner_id:
@@ -142,9 +145,6 @@ func _switch_network_object_owner(new_owner : int, network_object : NetworkObjec
 		return
 		
 	for player in connected_player_data:
-		if player.network_id == network_object.owner_id:
-			if player.players_objects.has(network_object):
-				player.players_objects.erase(network_object)
 		if player.network_id == new_owner:
 			player.players_objects.append(network_object)
 			
@@ -172,6 +172,11 @@ func _get_refuse_connections() -> bool:
 ## Call to disconnect from the server or shut down the server
 func _disconnect():
 	multiplayer.multiplayer_peer = null
+	
+	for player in connected_player_data:
+		for network_object in player.players_objects:
+			network_object.queue_free()
+	
 	connected_player_data = []
 	network_id = 0
 	current_object_id_number = 0
@@ -216,21 +221,27 @@ func _on_peer_connected(peer_id):
 			connected_player_data.erase(player)
 			continue
 			
-		
+		# FIX THIS AT SOME POINT
+		#
+		#
+		#
+		#
+		#
+		#
+		#
+		#
+		#
 		for network_object in player.players_objects:
 			if network_object.resource_path.is_empty():
 				network_object._initialize_network_object.rpc_id(peer_id, network_object.object_id,
 				 network_object.owner_id,
-				 network_object._get_transforms())
-			elif ResourceLoader.exists(network_object.resource_path):
-				_network_spawn_object.rpc_id(peer_id,
-				[network_object.spawn_args]
+				 network_object._get_transforms(),
+				 network_object.network_sync_vars
 				)
-				network_object._initialize_network_object.rpc_id(peer_id, network_object.object_id,
-				 network_object.owner_id,
-				 network_object._get_transforms())
+			else:
+				_network_spawn_object.rpc_id(peer_id, [network_object.spawn_args])
 	
-	connected_player_data.append(_create_data(peer_id, "client"))
+	connected_player_data.append(_create_player_data(peer_id))
 	print("%s connected" % peer_id)
 	
 
@@ -239,7 +250,6 @@ func _on_peer_connected(peer_id):
 func _on_peer_disconnected(peer_id):
 	var disconnected_player : ConnectedPlayerData
 	for player in connected_player_data:
-		print(player.network_id)
 		if player.network_id == peer_id:
 			disconnected_player = player
 			break;
@@ -253,13 +263,14 @@ func _on_peer_disconnected(peer_id):
 			network_object._destroy_network_object.rpc()
 		else:
 			network_object._change_owner(1)
-		
+	
+	_destroy_connected_player_data.rpc(disconnected_player.network_id)
 	connected_player_data.erase(disconnected_player)
 
 ## Called on clients when a connection to the server is established
 func _on_connected_to_server():
 	network_id = multiplayer.get_unique_id()
-	connected_player_data.append(_create_data(network_id, "client"))
+	connected_player_data.append(_create_player_data(network_id))
 	print("connected to server with id %s" % network_id)
 	network_started = true
 	on_server_started.emit()
@@ -269,59 +280,84 @@ func _on_connected_to_server():
 
 #region helper functions
 ## created connected player data and then returns it
-func _create_data(player_id : int, player_name : String) -> ConnectedPlayerData:
-	var server_data : ConnectedPlayerData = ConnectedPlayerData.new()
-	server_data.network_id = player_id
-	server_data.player_name = player_name
-	return server_data
+func _create_player_data(player_id : int) -> ConnectedPlayerData:
+	var player_data : ConnectedPlayerData = ConnectedPlayerData.new()
+	player_data.network_id = player_id
+	return player_data
 
 ## Helps with creating a spawn request in the desired format. Not needed, but useful
+## If its on the server runs the spawn batching logic and doesn't send the _request_spawn rpc
 func _request_spawn_helper(
 	resource_path : String,
-	args : Dictionary = {}):
+	args : Dictionary = {},
+	owner_id : int = 1,
+	object_id : int = -1):
 	
 	if !resource_path.begins_with("res://"):
 		push_error("Invalid resource path %s" % resource_path)
 		return
 	
-	args["resource_path"] = resource_path
+	args[RESOURCE_PATH_KEY] = resource_path
 	
 	if _verify_spawn_path(resource_path):
 		push_error("Invalid resource path %s" % resource_path)
 		return
 	
-	_request_spawn_object.rpc_id(1, args)
+	if !is_server:
+		_request_spawn_object.rpc_id(1, args)
+	else:
+		args[OWNER_ID_KEY] = owner_id
+		args[OBJECT_ID_KEY] = object_id
+		_handle_spawn_batching(args)
 
 ## Just does a VERY basic validation of the spawn path for a object. 
-## More validation should be down with the 
+## More validation should be done with the 
 ## _validate_request_spawn_callable(owner_id : int, spawn_args : Dictionary)
 ## in a production game. Fine as is for testing purposes
 func _verify_spawn_path(resource_path : String) -> bool:
 	return !ResourceLoader.exists(resource_path) || !resource_path.begins_with("res://")
 
 func _handle_spawn_batching(spawn : Dictionary):
-	if batch_spawns:
-		spawn_batch.append(spawn)
-	else:
-		_network_spawn_object.rpc([spawn])
+	if spawn_batching_logic:
+		if spawn_batching_logic.call(spawn):
+			spawn_batch.append(spawn)
+			return
+	
+	_network_spawn_object.rpc([spawn])
 #endregion
 
 #region overridable functions
 ## Override this function to add custom spawn behaviour. 
 ## Such as adding a spawn arg "position" to choose the spawning position
-func _spawn_object(spawn_args : Dictionary):
+func _spawn_object(spawn_args : Dictionary) -> Node:
 	var owner_id : int = 1
+	
+	var object_id : int = -1
+	
+	if spawn_args.has(OBJECT_ID_KEY):
+		object_id = spawn_args[OBJECT_ID_KEY]
 	
 	if spawn_args.has(OWNER_ID_KEY):
 		owner_id = spawn_args[OWNER_ID_KEY]
 	
 	var resource_path : String = spawn_args[RESOURCE_PATH_KEY]
+
+	if resource_path is not String:
+		push_warning("either resource_path(%s) is not a String" % resource_path)
+		return null
+	
+	if !ResourceLoader.exists(resource_path) || !resource_path.begins_with("res://"):
+		push_error("Invalid resource path %s" % resource_path)
+		return null
+	
+	if validate_spawn_callable:
+		if !validate_spawn_callable.call(spawn_args): return null
 	
 	var obj = load(resource_path).instantiate()
 	
 	if !is_instance_valid(obj):
 		push_error("Failed to instantiate: %s" % resource_path)
-		return
+		return null
 	
 	if obj is NetworkObject:
 		obj.resource_path = resource_path
@@ -329,6 +365,7 @@ func _spawn_object(spawn_args : Dictionary):
 		obj.spawn_args = spawn_args
 	
 	get_tree().current_scene.add_child(obj)
+	return obj
 
 ## Override this function
 ## This gets called on the server and clients on each network tick after the core tick logic happens
@@ -373,24 +410,81 @@ func _request_spawn_object(spawn_args : Dictionary):
 @rpc("authority", "call_local", "reliable", 2)
 func _network_spawn_object(spawns : Array):
 	for spawn in spawns:
-		var resource_path = spawn[RESOURCE_PATH_KEY]
-	
-		if resource_path is not String:
-			push_warning("either resource_path(%s) is not a String" % resource_path)
-			return
-		
-		if !ResourceLoader.exists(resource_path) || !resource_path.begins_with("res://"):
-			push_error("Invalid resource path %s" % resource_path)
-			return
-		
-		if validate_spawn_callable:
-			if validate_spawn_callable.call(spawn):
-				_spawn_object(spawn)
-		else:
 			_spawn_object(spawn)
 
+@rpc("authority", "call_remote", "unreliable", TICK_CHANNEL)
+func _update_dirty_sync_vars(owner_id : int, variables : Array):
+	var updated_player : ConnectedPlayerData
+	
+	for player in connected_player_data:
+		if player.network_id == owner_id:
+			updated_player = player
+			break
+	
 
-@rpc("authority", "call_local", TICK_TYPES[TICK_TYPE], 2)
+## Destroys the connected players data that matches the player id on the local machine
+## could be because the player disconnected or the player switched rooms, moved too far away etc.
+@rpc("authority", "call_remote", "reliable")
+func _destroy_connected_player_data(player_id):
+	var player_to_destroy : ConnectedPlayerData
+	for player in connected_player_data:
+		if player.network_id == player_id:
+			player_to_destroy = player
+			break
+	
+	for network_object in player_to_destroy.players_objects:
+		network_object.queue_free()
+		
+	connected_player_data.erase(player_to_destroy)
+
+@rpc("authority", "call_remote", "reliable")
+func _add_connected_player(player_id : Array[int], network_objects : Array[Dictionary]):
+	for id in player_id:
+		for player in connected_player_data:
+			if player.network_id == id:
+				break
+		
+		connected_player_data.append(_create_player_data(id))
+		for network_object in network_objects:
+			if network_object[OWNER_ID_KEY] == id:
+				var transforms : Dictionary = {}
+				var sync_vars : Dictionary = {}
+				
+				if network_object.has("transforms"):
+					transforms = network_object["transforms"]
+				
+				if network_object.has("sync_vars"):
+					sync_vars = network_object["sync_vars"]
+				
+				if !network_object.has(RESOURCE_PATH_KEY) && network_object.has("node_path"):
+					# get the node path and initialize
+					var node : NetworkObject = get_node(network_object["node_path"])
+					node._initialize_network_object(
+						network_object[OBJECT_ID_KEY],
+						network_object[OWNER_ID_KEY],
+						transforms,
+						sync_vars)
+					network_objects.erase(network_object)
+					continue
+				
+				var spawned_object = _spawn_object(network_object)
+				if spawned_object is NetworkObject:
+					spawned_object._initialize_network_object(
+						spawned_object.object_id,
+						spawned_object.owner_id,
+						transforms,
+						sync_vars
+					)
+				
+				network_objects.erase(network_object)
+
+
+@rpc("authority", "call_local", TICK_TYPES[TICK_TYPE], TICK_CHANNEL)
 func _on_network_tick(current_tick : int):
 	on_tick.emit(current_tick)
 #endregion
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventKey:
+		if event.is_pressed():
+			print("blahh")

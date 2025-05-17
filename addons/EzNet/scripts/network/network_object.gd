@@ -24,6 +24,9 @@ var spawn_args : Dictionary
 ## DO NOT MODIFY
 ## This is for the server to track which transforms have changed from their original position
 var cached_transforms : Dictionary
+## DO NOT MODIFY
+## This is to cache the sync vars so that we don't need to get them each network tick
+var network_sync_vars : Dictionary = {}
 #endregion
 
 #region validators
@@ -51,6 +54,13 @@ signal on_network_destroy()
 #region godot functions
 ## @tutorial override this and then call super() at the END of your ready function
 func _ready() -> void:
+	var props := get_property_list()
+	
+	for prop in props:
+		# checking for synce vars and making sure they are network serializable types
+		if prop.name.begins_with("sync_") && (prop.type != 16 && prop.type != 17):
+			network_sync_vars[prop.name] = get(prop.name)
+	
 	if !is_instance_valid(network_manager):
 		printerr("No network manager found. Maybe the name is incorrect or it wasn't auto loaded")
 		return
@@ -102,6 +112,34 @@ func _get_all_children_transforms(node : Node) -> Array[Node]:
 
 	return nodes
 
+## returns all of the synce vars that have changed
+func _get_dirty_sync_vars() -> Array:
+	if network_sync_vars.is_empty(): return[]
+	
+	var dirty_vars : Array = []
+	
+	dirty_vars.append("object_id")
+	dirty_vars.append(object_id)
+	
+	for key in network_sync_vars:
+		var old_value = network_sync_vars[key]
+		var new_value = get(key)
+		
+		if old_value != new_value:
+			dirty_vars.append(key)
+			dirty_vars.append(new_value)
+			network_sync_vars[key] = new_value
+	
+	if dirty_vars.size() <= 2: return []
+	
+	return dirty_vars
+
+#endregion
+
+#region private functions
+
+
+	
 #endregion
 
 #region helper functions
@@ -172,7 +210,7 @@ func _on_network_start():
 ## Requests ownership of this network object from the server. 
 ## 
 ## @tutorial _request_ownership.rpc_id(1)
-@rpc("any_peer", "reliable", "call_local", 2)
+@rpc("any_peer", "reliable", "call_local", NetworkManager.MANAGEMENT_CHANNEL)
 func _request_ownership():
 	var sender_id : int = network_manager.multiplayer.get_remote_sender_id()
 	print("requested ownership change by %s" % sender_id)
@@ -190,18 +228,17 @@ func _request_ownership():
 		_change_owner.rpc(sender_id)
 
 ## Called from the server when it changes the ownership of this network object
-@rpc("authority", "call_local", "reliable", 2)
+@rpc("authority", "call_local", "reliable", NetworkManager.MANAGEMENT_CHANNEL)
 func _change_owner(new_owner : int):
-	if network_manager.is_server || new_owner == network_manager.network_id || _is_owner():
-		network_manager._switch_network_object_owner(new_owner, self)
+	network_manager._switch_network_object_owner(new_owner, self)
 	on_owner_changed.emit(owner_id, new_owner)
 	print("old owner: %s new owner: %s" % [owner_id, new_owner])
 	owner_id = new_owner
 
 ## does the preliminary setup of an object such as syncing its position when
 ## spawned or connected to the network
-@rpc("authority", "call_local", "reliable", 2)
-func _initialize_network_object(objects_id : int, owners_id : int, transforms : Dictionary):
+@rpc("authority", "call_local", "reliable", NetworkManager.MANAGEMENT_CHANNEL)
+func _initialize_network_object(objects_id : int, owners_id : int, transforms : Dictionary, sync_vars : Dictionary):
 	if !network_manager.is_server:
 		self.object_id = objects_id
 		self.owner_id = owners_id
@@ -214,13 +251,15 @@ func _initialize_network_object(objects_id : int, owners_id : int, transforms : 
 			var child_path = child.get_path()
 			if transforms.has(child_path):
 				child.transform = transforms[child_path]
+		
+		for key in sync_vars.keys():
+			set(key, sync_vars[key])
 	
 	print("calling on network ready")
 	on_network_ready.emit()
-	
 
 ## Used to request the server to destroy this network object
-@rpc("any_peer", "call_local", "reliable", 2)
+@rpc("any_peer", "call_local", "reliable", NetworkManager.MANAGEMENT_CHANNEL)
 func _request_destroy_network_object():
 	var sender_id : int = network_manager.multiplayer.get_remote_sender_id()
 	if validate_destroy_request_callable:
@@ -230,7 +269,7 @@ func _request_destroy_network_object():
 		_destroy_network_object.rpc()
 
 ## Called by the server when it want's to destroy this network object
-@rpc("authority", "call_local", "reliable", 2)
+@rpc("authority", "call_local", "reliable", NetworkManager.MANAGEMENT_CHANNEL)
 func _destroy_network_object():
 	if _is_owner() || network_manager.is_server:
 		network_manager._remove_network_object(self)
