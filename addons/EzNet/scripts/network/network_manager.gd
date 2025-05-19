@@ -13,6 +13,9 @@ const MANAGEMENT_CHANNEL : int = 2
 const OWNER_ID_KEY : String = "owner_id"
 const RESOURCE_PATH_KEY : String = "resource_path"
 const OBJECT_ID_KEY : String = "object_id"
+const TRANSFORMS_KEY : String = "transforms"
+const SYNC_VARS_KEY : String = "sync_vars"
+
 const TICK_TYPES : Dictionary = {
 	Tick_Type.RELIABLE: "reliable",
 	Tick_Type.UNRELIABLE: "unreliable",
@@ -192,6 +195,19 @@ func _tick():
 	tick_number += 1
 	
 	for player in connected_player_data:
+		var sync_vars : Array = []
+		
+		for network_object in player.players_objects:
+			var objects_sync_vars = network_object._get_dirty_sync_vars()
+
+			if objects_sync_vars.is_empty(): continue
+			
+			sync_vars.append(network_object.object_id)
+			sync_vars.append(objects_sync_vars)
+		
+		
+		_update_dirty_sync_vars.rpc(player.network_id, sync_vars)
+		
 		if !spawn_batch.is_empty() && player.network_id != 1:
 			_network_spawn_object.rpc_id(player.network_id ,spawn_batch)
 		_on_network_tick.rpc_id(player.network_id, tick_number)
@@ -200,6 +216,8 @@ func _tick():
 		_network_spawn_object.rpc_id(1 ,spawn_batch)
 	
 	spawn_batch.clear()
+	
+	
 #endregion
 
 #region network signal callbacks
@@ -207,6 +225,8 @@ func _tick():
 ## Called on server when a new client connects to the server
 func _on_peer_connected(peer_id):
 	if !is_server: return
+	var connected_players : Array[int] = []
+	var spawns : Array[Dictionary] = []
 	
 	for player in connected_player_data:
 		if !is_instance_valid(player):
@@ -220,26 +240,27 @@ func _on_peer_connected(peer_id):
 				network_object._destroy_network_object.rpc()
 			connected_player_data.erase(player)
 			continue
-			
-		# FIX THIS AT SOME POINT
-		#
-		#
-		#
-		#
-		#
-		#
-		#
-		#
-		#
+		
+		connected_players.append(player.network_id)
+		
+		var spawn : Dictionary = {}
 		for network_object in player.players_objects:
 			if network_object.resource_path.is_empty():
-				network_object._initialize_network_object.rpc_id(peer_id, network_object.object_id,
-				 network_object.owner_id,
-				 network_object._get_transforms(),
-				 network_object.network_sync_vars
-				)
+				spawn[OBJECT_ID_KEY] = network_object.object_id
+				spawn[OWNER_ID_KEY] = network_object.owner_id
+				spawn[TRANSFORMS_KEY] = network_object._get_transforms()
+				spawn[SYNC_VARS_KEY] = network_object.network_sync_vars
+				spawn["node_path"] = network_object.get_path()
 			else:
-				_network_spawn_object.rpc_id(peer_id, [network_object.spawn_args])
+				spawn = network_object.spawn_args.duplicate(true)
+				spawn[OBJECT_ID_KEY] = network_object.object_id
+				spawn[OWNER_ID_KEY] = network_object.owner_id
+				spawn[TRANSFORMS_KEY] = network_object._get_transforms()
+				spawn[SYNC_VARS_KEY] = network_object.network_sync_vars
+			
+			spawns.append(spawn)
+		
+		_add_connected_player.rpc_id(peer_id, connected_players, spawns)
 	
 	connected_player_data.append(_create_player_data(peer_id))
 	print("%s connected" % peer_id)
@@ -421,6 +442,23 @@ func _update_dirty_sync_vars(owner_id : int, variables : Array):
 			updated_player = player
 			break
 	
+	if !is_instance_valid(updated_player) || updated_player == null: return
+	
+	var length : int = variables.size() - 1
+	
+	for n in range(0, length, 2):
+		var object_id : int = variables[n]
+		var updated_vars : Array = variables[n+1]
+		var updated_object : NetworkObject
+		
+		for network_object in updated_player.players_objects:
+			if network_object.object_id != object_id: continue
+			
+			updated_object = network_object
+			break
+		
+		if !is_instance_valid(updated_object): continue
+		updated_object._update_dirty_sync_vars(updated_vars)
 
 ## Destroys the connected players data that matches the player id on the local machine
 ## could be because the player disconnected or the player switched rooms, moved too far away etc.
@@ -437,6 +475,7 @@ func _destroy_connected_player_data(player_id):
 		
 	connected_player_data.erase(player_to_destroy)
 
+## Adds all connected players and their network objects to newly connected clients
 @rpc("authority", "call_remote", "reliable")
 func _add_connected_player(player_id : Array[int], network_objects : Array[Dictionary]):
 	for id in player_id:
@@ -450,11 +489,11 @@ func _add_connected_player(player_id : Array[int], network_objects : Array[Dicti
 				var transforms : Dictionary = {}
 				var sync_vars : Dictionary = {}
 				
-				if network_object.has("transforms"):
-					transforms = network_object["transforms"]
+				if network_object.has(TRANSFORMS_KEY):
+					transforms = network_object[TRANSFORMS_KEY]
 				
-				if network_object.has("sync_vars"):
-					sync_vars = network_object["sync_vars"]
+				if network_object.has(SYNC_VARS_KEY):
+					sync_vars = network_object[SYNC_VARS_KEY]
 				
 				if !network_object.has(RESOURCE_PATH_KEY) && network_object.has("node_path"):
 					# get the node path and initialize
@@ -483,8 +522,3 @@ func _add_connected_player(player_id : Array[int], network_objects : Array[Dicti
 func _on_network_tick(current_tick : int):
 	on_tick.emit(current_tick)
 #endregion
-
-func _input(event: InputEvent) -> void:
-	if event is InputEventKey:
-		if event.is_pressed():
-			print("blahh")

@@ -118,9 +118,6 @@ func _get_dirty_sync_vars() -> Array:
 	
 	var dirty_vars : Array = []
 	
-	dirty_vars.append("object_id")
-	dirty_vars.append(object_id)
-	
 	for key in network_sync_vars:
 		var old_value = network_sync_vars[key]
 		var new_value = get(key)
@@ -130,9 +127,15 @@ func _get_dirty_sync_vars() -> Array:
 			dirty_vars.append(new_value)
 			network_sync_vars[key] = new_value
 	
-	if dirty_vars.size() <= 2: return []
+	if dirty_vars.size() < 2: return []
 	
 	return dirty_vars
+
+func _update_dirty_sync_vars(updated_var : Array):
+	var length : int = updated_var.size() - 1
+	
+	for n in range(0, length, 2):
+		set(updated_var[n], updated_var[n+1])
 
 #endregion
 

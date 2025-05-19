@@ -6,6 +6,9 @@ class_name CharacterNetwork extends NetworkObject
 
 var validate_input_ray_callable : Callable
 
+var sync_health : int = 100000
+
+var last_health : int
 ## Called on server when player input is recieved
 ## @tutorial: send_input_ray(ray_origin : Vector3, ray_end : Vector3)
 signal on_player_input_recieved
@@ -19,6 +22,14 @@ func _ready() -> void:
 	print("child ready")
 	on_network_ready.connect(_on_network_ready)
 	super()
+
+func _process(delta: float) -> void:
+	if !network_manager.network_started: return
+	
+	if network_manager.is_server:
+		sync_health -= 1
+	elif last_health != sync_health:
+		last_health = sync_health
 
 func _on_network_ready():
 	print("on network ready")
