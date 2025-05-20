@@ -205,8 +205,8 @@ func _tick():
 			sync_vars.append(network_object.object_id)
 			sync_vars.append(objects_sync_vars)
 		
-		
-		_update_dirty_sync_vars.rpc(player.network_id, sync_vars)
+		if !sync_vars.is_empty():
+			_update_dirty_sync_vars.rpc(player.network_id, sync_vars)
 		
 		if !spawn_batch.is_empty() && player.network_id != 1:
 			_network_spawn_object.rpc_id(player.network_id ,spawn_batch)
@@ -338,6 +338,8 @@ func _request_spawn_helper(
 func _verify_spawn_path(resource_path : String) -> bool:
 	return !ResourceLoader.exists(resource_path) || !resource_path.begins_with("res://")
 
+## If there is spawn batching logic assigned to spawn_batching_logic then it will run that test
+## to see if that specific spawn should be batched or not
 func _handle_spawn_batching(spawn : Dictionary):
 	if spawn_batching_logic:
 		if spawn_batching_logic.call(spawn):
@@ -433,6 +435,7 @@ func _network_spawn_object(spawns : Array):
 	for spawn in spawns:
 			_spawn_object(spawn)
 
+## Updates the dirty sync vars for all network objects of a given player
 @rpc("authority", "call_remote", "unreliable", TICK_CHANNEL)
 func _update_dirty_sync_vars(owner_id : int, variables : Array):
 	var updated_player : ConnectedPlayerData
@@ -517,7 +520,7 @@ func _add_connected_player(player_id : Array[int], network_objects : Array[Dicti
 				
 				network_objects.erase(network_object)
 
-
+## emits the tick signal
 @rpc("authority", "call_local", TICK_TYPES[TICK_TYPE], TICK_CHANNEL)
 func _on_network_tick(current_tick : int):
 	on_tick.emit(current_tick)

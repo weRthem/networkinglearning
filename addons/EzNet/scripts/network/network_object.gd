@@ -139,12 +139,6 @@ func _update_dirty_sync_vars(updated_var : Array):
 
 #endregion
 
-#region private functions
-
-
-	
-#endregion
-
 #region helper functions
 
 func compare_transform_to_cached_transform(n : Node, cached_transform : Array) -> bool:
